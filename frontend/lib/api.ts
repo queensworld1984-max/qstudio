@@ -1,11 +1,12 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// Use Next.js API proxy to avoid CORS issues
+const API_URL = '' // Empty - use relative URLs to hit Next.js proxy
 
-// Create axios instance
+// Create axios instance - use relative URL to hit Next.js API routes
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
