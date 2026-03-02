@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { identityAPI, projectsAPI } from '@/lib/api'
-import { Plus, Trash2, Lock, Unlock } from 'lucide-react'
+import { Plus, Trash2, Lock, Unlock, User, Upload } from 'lucide-react'
 
 interface Character {
   id: string
@@ -15,62 +14,54 @@ interface Character {
 
 export default function IdentityPage() {
   const [characters, setCharacters] = useState<Character[]>([])
-  const [projects, setProjects] = useState<any[]>([])
-  const [selectedProject, setSelectedProject] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [projects] = useState([{ id: '1', name: 'My First Film' }])
+  const [selectedProject, setSelectedProject] = useState('1')
+  const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [newChar, setNewChar] = useState({ name: '', identity_locked: true, similarity_threshold: 80 })
 
-  useEffect(() => { fetchProjects() }, [])
-  useEffect(() => { if (selectedProject) fetchCharacters() }, [selectedProject])
+  // Demo mode - show sample characters
+  useEffect(() => {
+    setCharacters([
+      { id: '1', name: 'Main Character', project_id: '1', master_portrait_url: null, identity_locked: true, similarity_threshold: 80 },
+      { id: '2', name: 'Supporting Role', project_id: '1', master_portrait_url: null, identity_locked: false, similarity_threshold: 75 },
+    ])
+  }, [])
 
-  const fetchProjects = async () => {
-    try {
-      const res = await projectsAPI.list()
-      setProjects(res.data)
-      if (res.data.length > 0) setSelectedProject(res.data[0].id)
-    } catch (e) { console.error(e) }
-  }
-
-  const fetchCharacters = async () => {
-    setLoading(true)
-    try {
-      const res = await identityAPI.listCharacters(selectedProject)
-      setCharacters(res.data)
-    } catch (e) { console.error(e) }
-    setLoading(false)
-  }
-
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
-    try {
-      await identityAPI.createCharacter({ ...newChar, project_id: selectedProject })
-      setShowModal(false)
-      setNewChar({ name: '', identity_locked: true, similarity_threshold: 80 })
-      fetchCharacters()
-    } catch (e) { console.error(e) }
+    const char: Character = {
+      id: Date.now().toString(),
+      name: newChar.name,
+      project_id: selectedProject,
+      master_portrait_url: null,
+      identity_locked: newChar.identity_locked,
+      similarity_threshold: newChar.similarity_threshold
+    }
+    setCharacters([...characters, char])
+    setShowModal(false)
+    setNewChar({ name: '', identity_locked: true, similarity_threshold: 80 })
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this character?')) return
-    try {
-      await identityAPI.deleteCharacter(id)
-      fetchCharacters()
-    } catch (e) { console.error(e) }
+  const toggleLock = (id: string) => {
+    setCharacters(characters.map(c => c.id === id ? { ...c, identity_locked: !c.identity_locked } : c))
   }
 
-  const toggleLock = async (char: Character) => {
-    try {
-      await identityAPI.updateCharacter(char.id, { identity_locked: !char.identity_locked })
-      fetchCharacters()
-    } catch (e) { console.error(e) }
+  const deleteChar = (id: string) => {
+    if (confirm('Delete this character?')) {
+      setCharacters(characters.filter(c => c.id !== id))
+    }
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Identity Engine</h1>
-        <select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)} className="border rounded px-3 py-2">
+        <select 
+          value={selectedProject}
+          onChange={(e) => setSelectedProject(e.target.value)}
+          className="border rounded-lg px-4 py-2"
+        >
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
@@ -78,28 +69,45 @@ export default function IdentityPage() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-medium">Characters</h2>
-          <button onClick={() => setShowModal(true)} className="flex items-center px-4 py-2 bg-primary text-white rounded">
-            <Plus className="h-4 w-4 mr-2" /> New Character
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg">
+            <Plus className="h-4 w-4" /> New Character
           </button>
         </div>
 
-        {loading ? <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /> :
-         characters.length === 0 ? <p className="text-gray-500">No characters yet.</p> :
-         <div className="grid gap-4 md:grid-cols-3">
-           {characters.map(char => (
-             <div key={char.id} className="border rounded-lg p-4">
-               <div className="flex items-start justify-between">
-                 <div><h3 className="font-medium">{char.name}</h3>
-                 <p className="text-sm text-gray-500">Threshold: {char.similarity_threshold}%</p></div>
-                 <button onClick={() => toggleLock(char)} className={`p-2 rounded ${char.identity_locked ? 'bg-green-100 text-green-600' : 'bg-gray-100'}`}>
-                   {char.identity_locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                 </button>
-               </div>
-               {char.master_portrait_url && <img src={char.master_portrait_url} alt={char.name} className="mt-3 w-full h-32 object-cover rounded" />}
-               <button onClick={() => handleDelete(char.id)} className="mt-3 text-red-600 text-sm flex items-center"><Trash2 className="h-4 w-4 mr-1" /> Delete</button>
-             </div>
-           ))}
-         </div>}
+        {loading ? (
+          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+        ) : characters.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">No characters yet. Create one to get started.</p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {characters.map(char => (
+              <div key={char.id} className="border rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                      <User className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">{char.name}</h3>
+                      <p className="text-sm text-gray-500">Threshold: {char.similarity_threshold}%</p>
+                    </div>
+                  </div>
+                  <button onClick={() => toggleLock(char.id)} className={`p-2 rounded ${char.identity_locked ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                    {char.identity_locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary">
+                    <Upload className="h-3 w-3" /> Upload Faces
+                  </button>
+                  <button onClick={() => deleteChar(char.id)} className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700">
+                    <Trash2 className="h-3 w-3" /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {showModal && (
@@ -108,16 +116,25 @@ export default function IdentityPage() {
             <h2 className="text-xl font-bold mb-4">New Character</h2>
             <form onSubmit={handleCreate}>
               <div className="space-y-4">
-                <div><label className="block text-sm font-medium">Name</label>
-                <input type="text" required value={newChar.name} onChange={(e) => setNewChar({...newChar, name: e.target.value})}
-                  className="w-full border rounded px-3 py-2 mt-1" /></div>
-                <div className="flex items-center"><input type="checkbox" checked={newChar.identity_locked}
-                  onChange={(e) => setNewChar({...newChar, identity_locked: e.target.checked})} className="mr-2" />
-                <label className="text-sm">Identity Lock</label></div>
+                <div>
+                  <label className="block text-sm font-medium">Name</label>
+                  <input type="text" required value={newChar.name} onChange={(e) => setNewChar({...newChar, name: e.target.value})} className="w-full border rounded-lg px-3 py-2 mt-1" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Identity Lock</label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <input type="checkbox" checked={newChar.identity_locked} onChange={(e) => setNewChar({...newChar, identity_locked: e.target.checked})} />
+                    <span className="text-sm text-gray-600">Lock identity for consistency</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Similarity Threshold: {newChar.similarity_threshold}%</label>
+                  <input type="range" min="50" max="100" value={newChar.similarity_threshold} onChange={(e) => setNewChar({...newChar, similarity_threshold: parseInt(e.target.value)})} className="w-full mt-2" />
+                </div>
               </div>
-              <div className="flex justify-end mt-6 gap-2">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary text-white rounded">Create</button>
+              <div className="flex justify-end gap-2 mt-6">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg">Create</button>
               </div>
             </form>
           </div>

@@ -23,6 +23,13 @@ export default function ProjectsPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
+    // Demo mode - use mock data
+    setProjects([
+      { id: '1', name: 'My First Film', description: 'A demo project', status: 'active', created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+    ])
+    setLoading(false)
+    return
+
     fetchProjects()
   }, [])
 
@@ -40,6 +47,24 @@ export default function ProjectsPage() {
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
+
+    // Demo mode - add locally
+    setTimeout(() => {
+      const newProj = {
+        id: Date.now().toString(),
+        name: newProject.name,
+        description: newProject.description,
+        status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      setProjects([...projects, newProj])
+      setShowModal(false)
+      setNewProject({ name: '', description: '' })
+      setCreating(false)
+    }, 500)
+
+    return
 
     try {
       const response = await projectsAPI.create(newProject)
