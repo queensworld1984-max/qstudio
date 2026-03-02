@@ -36,11 +36,11 @@ export default function LandingPage() {
               <a href="#pricing" className="text-gray-300 hover:text-white transition">Pricing</a>
             </div>
             <div className="flex items-center gap-4">
-              <Link href="/auth/login" className="text-gray-300 hover:text-white transition">
-                Sign In
+              <Link href="/dashboard" className="text-gray-300 hover:text-white transition">
+                Enter Studio
               </Link>
               <Link 
-                href="/auth/register" 
+                href="/dashboard" 
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-4 py-2 rounded-lg font-medium transition"
               >
                 Get Started
