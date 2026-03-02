@@ -2,17 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://72.62.165.54:8000'
 
-export async function handler(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const path = request.nextUrl.pathname.replace('/api', '')
   const authHeader = request.headers.get('authorization')
   
   const response = await fetch(`${API_URL}${path}${request.nextUrl.search}`, {
-    method: request.method,
+    method: 'GET',
     headers: {
       'Content-Type': 'application/json',
       ...(authHeader ? { Authorization: authHeader } : {}),
     },
-    body: request.method !== 'GET' && request.method !== 'HEAD' ? await request.text() : undefined,
   })
 
   const data = await response.text()
@@ -25,8 +24,78 @@ export async function handler(request: NextRequest) {
   })
 }
 
-export const GET = handler
-export const POST = handler
-export const PUT = handler
-export const DELETE = handler
-export const OPTIONS = () => new NextResponse(null, { headers: { 'Access-Control-Allow-Origin': '*' } })
+export async function POST(request: NextRequest) {
+  const body = await request.text()
+  const path = request.nextUrl.pathname.replace('/api', '')
+  
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': request.headers.get('Content-Type') || 'application/json',
+    },
+    body,
+  })
+
+  const data = await response.text()
+  return new NextResponse(data, {
+    status: response.status,
+    headers: {
+      'Content-Type': response.headers.get('Content-Type') || 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+  })
+}
+
+export async function PUT(request: NextRequest) {
+  const body = await request.text()
+  const path = request.nextUrl.pathname.replace('/api', '')
+  
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': request.headers.get('Content-Type') || 'application/json',
+    },
+    body,
+  })
+
+  const data = await response.text()
+  return new NextResponse(data, {
+    status: response.status,
+    headers: {
+      'Content-Type': response.headers.get('Content-Type') || 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+  })
+}
+
+export async function DELETE(request: NextRequest) {
+  const path = request.nextUrl.pathname.replace('/api', '')
+  const authHeader = request.headers.get('authorization')
+  
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authHeader ? { Authorization: authHeader } : {}),
+    },
+  })
+
+  const data = await response.text()
+  return new NextResponse(data, {
+    status: response.status,
+    headers: {
+      'Content-Type': response.headers.get('Content-Type') || 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+  })
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { 
+    headers: { 
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    } 
+  })
+}
