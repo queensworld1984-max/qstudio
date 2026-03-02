@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Folder, Plus, Search, Trash2, Edit } from 'lucide-react'
+import { Folder, Plus, Search, Trash2, Edit, ArrowRight } from 'lucide-react'
 import { projectsAPI } from '@/lib/api'
 
 interface Project {
@@ -154,17 +154,18 @@ export default function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map((project) => (
-            <div key={project.id} className="bg-white rounded-lg shadow p-6 hover:shadow-md transition">
+            <Link href="/scenes" key={project.id} className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition cursor-pointer group">
               <div className="flex items-start justify-between">
                 <div className="flex items-center">
                   <Folder className="h-10 w-10 text-gray-400" />
                   <div className="ml-3">
-                    <h3 className="text-lg font-medium text-gray-900">{project.name}</h3>
+                    <h3 className="text-lg font-medium text-gray-900 group-hover:text-primary transition">{project.name}</h3>
                     <p className="text-sm text-gray-500">
                       {project.description || 'No description'}
                     </p>
                   </div>
                 </div>
+                <ArrowRight className="h-5 w-5 text-gray-300 group-hover:text-primary transition transform group-hover:translate-x-1" />
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -189,7 +190,7 @@ export default function ProjectsPage() {
               <div className="mt-4 text-xs text-gray-500">
                 Updated {new Date(project.updated_at).toLocaleDateString()}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

@@ -4,16 +4,29 @@ import { useState } from 'react'
 import { Plus, Play, Trash2, Film } from 'lucide-react'
 
 export default function ScenesPage() {
-  const [scenes] = useState([
+  const [scenes, setScenes] = useState([
     { id: '1', name: 'Opening Scene', duration: 30, status: 'draft', characters: 2 },
     { id: '2', name: 'Dialogue Sequence', duration: 45, status: 'rendering', characters: 1 },
   ])
+
+  const handleRender = (id: string) => {
+    // Demo: show rendering feedback
+    setScenes(scenes.map(s => s.id === id ? { ...s, status: 'rendering' } : s))
+    setTimeout(() => {
+      setScenes(scenes.map(s => s.id === id ? { ...s, status: 'completed' } : s))
+    }, 2000)
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Scene Builder</h1>
-        <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg">
+        <button 
+          onClick={() => {
+            setScenes([...scenes, { id: Date.now().toString(), name: `Scene ${scenes.length + 1}`, duration: 30, status: 'draft', characters: 1 }])
+          }}
+          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-all hover:scale-105 active:scale-95"
+        >
           <Plus className="h-4 w-4" /> New Scene
         </button>
       </div>
@@ -41,10 +54,21 @@ export default function ScenesPage() {
                   </div>
                 </div>
                 <div className="mt-4 flex gap-2">
-                  <button className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm">
-                    <Play className="h-3 w-3" /> Render
+                  <button 
+                    onClick={() => handleRender(scene.id)}
+                    disabled={scene.status === 'rendering'}
+                    className={`flex items-center gap-1 px-3 py-1 rounded text-sm transition-all ${
+                      scene.status === 'rendering' 
+                        ? 'bg-blue-600 text-white animate-pulse' 
+                        : scene.status === 'completed'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105'
+                    }`}
+                  >
+                    <Play className={`h-3 w-3 ${scene.status === 'rendering' ? 'animate-spin' : ''}`} /> 
+                    {scene.status === 'rendering' ? 'Rendering...' : scene.status === 'completed' ? 'Done' : 'Render'}
                   </button>
-                  <button className="flex items-center gap-1 text-sm text-red-600">
+                  <button className="flex items-center gap-1 text-sm text-red-600 hover:scale-110 transition-transform">
                     <Trash2 className="h-3 w-3" />
                   </button>
                 </div>

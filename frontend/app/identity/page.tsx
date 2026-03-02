@@ -30,6 +30,7 @@ export default function IdentityPage() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
+    // Add with animation
     const char: Character = {
       id: Date.now().toString(),
       name: newChar.name,
@@ -44,6 +45,7 @@ export default function IdentityPage() {
   }
 
   const toggleLock = (id: string) => {
+    // Animate
     setCharacters(characters.map(c => c.id === id ? { ...c, identity_locked: !c.identity_locked } : c))
   }
 
@@ -97,7 +99,7 @@ export default function IdentityPage() {
                   </button>
                 </div>
                 <div className="mt-4 flex gap-2">
-                  <button className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary">
+                  <button className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary transition-colors">
                     <Upload className="h-3 w-3" /> Upload Faces
                   </button>
                   <button onClick={() => deleteChar(char.id)} className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700">
