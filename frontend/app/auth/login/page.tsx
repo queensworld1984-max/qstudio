@@ -19,7 +19,9 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      console.log('Attempting login with:', email)
       const response = await authAPI.login(email, password)
+      console.log('Login response:', response)
       const { access_token, refresh_token } = response.data
 
       // Store tokens
@@ -28,7 +30,8 @@ export default function LoginPage() {
 
       router.push('/dashboard')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.')
+      console.error('Login error:', err)
+      setError(err.response?.data?.detail || err.message || 'Login failed. Please try again.')
     } finally {
       setLoading(false)
     }

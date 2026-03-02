@@ -44,6 +44,7 @@ export default function RegisterPage() {
       router.push('/auth/login?registered=true')
     } catch (err: any) {
       console.error('Registration error:', err)
+      console.error('Error response:', err.response?.data)
       setError(err.response?.data?.detail || err.message || 'Registration failed. Please try again.')
     } finally {
       setLoading(false)
