@@ -13,6 +13,7 @@ import logging
 
 from app.api.routes import auth, projects
 from app.core.config import settings
+from app.core.database import init_db
 
 # Configure logging
 logging.basicConfig(
@@ -59,6 +60,9 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 async def startup_event():
     logger.info("Starting Q Studio API...")
     logger.info(f"Environment: {'Development' if settings.DEBUG else 'Production'}")
+    # Initialize database tables
+    init_db()
+    logger.info("Database initialized")
 
 
 @app.on_event("shutdown")
