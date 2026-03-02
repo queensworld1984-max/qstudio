@@ -97,10 +97,10 @@ app.include_router(identity.router, prefix="/api/identity", tags=["Identity Engi
 from app.api.routes import scenes
 app.include_router(scenes.router, prefix="/api/scenes", tags=["Scene Builder"])
 
-# Phase 1.1: Render Queue
-from app.api.routes import render
-app.include_router(render.router, prefix="/api/render", tags=["Render Queue"])
-
 # Phase 1.1: Episodes
 from app.api.routes import episodes
 app.include_router(episodes.router, prefix="/api/episodes", tags=["Episodes"])
+
+# Phase 1.1: Render Queue
+from app.api.routes import render
+app.include_router(render.router, prefix="/api/render", tags=["Render Queue"])
