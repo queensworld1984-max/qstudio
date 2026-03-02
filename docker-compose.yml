@@ -73,8 +73,10 @@ services:
       dockerfile: Dockerfile
     container_name: qstudio-web
     environment:
-      NEXT_PUBLIC_API_URL: http://api:8000
-      API_URL: http://api:8000
+      # For Docker internal communication use: http://api:8000
+      # For external access (Hostinger) use: http://72.62.165.54:8000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://72.62.165.54:8000}
+      API_URL: ${API_URL:-http://72.62.165.54:8000}
     ports:
       - "3000:3000"
     depends_on:

@@ -14,10 +14,16 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
     # Database
-    DATABASE_URL: str = "postgresql://qstudio:qstudio@postgres:5432/qstudio"
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL", 
+        "postgresql://qstudio:qstudio_dev_password@postgres:5432/qstudio"
+    )
 
     # Redis
-    REDIS_URL: str = "redis://:qstudio@redis:6379/0"
+    REDIS_URL: str = os.getenv(
+        "REDIS_URL", 
+        "redis://:qstudio_dev_redis@redis:6379/0"
+    )
 
     # JWT
     JWT_SECRET_KEY: str = "dev-secret-key-change-in-production-min-32-chars"
