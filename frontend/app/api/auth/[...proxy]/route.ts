@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://72.62.165.54:8000'
 
 export async function GET(request: NextRequest) {
-  const path = request.nextUrl.pathname.replace('/api/auth', '/auth')
+  const path = request.nextUrl.pathname  // Keep full path like /api/auth/login
   const authHeader = request.headers.get('authorization')
   
   const response = await fetch(`${API_URL}${path}${request.nextUrl.search}`, {
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
-  const path = request.nextUrl.pathname.replace('/api/auth', '/auth')
+  const path = request.nextUrl.pathname  // Keep full path
   
   const response = await fetch(`${API_URL}${path}`, {
     method: 'POST',
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   const body = await request.text()
-  const path = request.nextUrl.pathname.replace('/api/auth', '/auth')
+  const path = request.nextUrl.pathname
   
   const response = await fetch(`${API_URL}${path}`, {
     method: 'PUT',
@@ -69,7 +69,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const path = request.nextUrl.pathname.replace('/api/auth', '/auth')
+  const path = request.nextUrl.pathname
   const authHeader = request.headers.get('authorization')
   
   const response = await fetch(`${API_URL}${path}`, {
