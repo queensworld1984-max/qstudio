@@ -39,6 +39,8 @@ class Settings(BaseSettings):
         "http://api:8000",
         "http://72.62.165.54:3000",
         "http://72.62.165.54:8000",
+        "https://72.62.165.54:3000",
+        "https://72.62.165.54:8000",
     ]
 
     # Rate limiting
