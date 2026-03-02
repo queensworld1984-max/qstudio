@@ -32,16 +32,19 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
+      console.log('Attempting registration with:', { email, fullName })
       await authAPI.register({
         email,
         password,
         full_name: fullName || undefined,
       })
+      console.log('Registration successful')
 
       // Redirect to login
       router.push('/auth/login?registered=true')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.')
+      console.error('Registration error:', err)
+      setError(err.response?.data?.detail || err.message || 'Registration failed. Please try again.')
     } finally {
       setLoading(false)
     }
