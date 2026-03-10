@@ -2,92 +2,96 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
-import { authAPI } from '@/lib/api'
+import { Film, Loader2, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
     setLoading(true)
+    setError('')
 
     try {
-      console.log('Attempting login with:', email)
-      const response = await authAPI.login(email, password)
-      console.log('Login response:', response)
-      const { access_token, refresh_token } = response.data
+      const formData = new URLSearchParams()
+      formData.append('username', email)
+      formData.append('password', password)
 
-      // Store tokens
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData
+      })
 
-      router.push('/dashboard')
-    } catch (err: any) {
-      console.error('Login error:', err)
-      setError(err.response?.data?.detail || err.message || 'Login failed. Please try again.')
+      const data = await res.json()
+
+      if (res.ok) {
+        localStorage.setItem('access_token', data.access_token)
+        if (data.refresh_token) {
+          localStorage.setItem('refresh_token', data.refresh_token)
+        }
+        window.location.href = '/dashboard'
+      } else {
+        setError(data.detail || 'Login failed')
+      }
+    } catch (err) {
+      setError('Cannot connect to server')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 py-12 px-4">
+      <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Q Studio</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to your account
-          </p>
+          <div className="mx-auto h-12 w-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
+            <Film className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="mt-6 text-3xl font-extrabold text-white">Q Studio</h2>
+          <p className="mt-2 text-sm text-gray-400">Sign in to your account</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
+            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
               {error}
             </div>
           )}
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-              placeholder="••••••••"
-            />
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded-t-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded-b-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+              />
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -95,14 +99,13 @@ export default function LoginPage() {
               'Sign In'
             )}
           </button>
-        </form>
 
-        <p className="text-center text-sm text-gray-600">
-          Do not have an account?{' '}
-          <Link href="/auth/register" className="font-medium text-primary hover:text-primary/80">
-            Register
-          </Link>
-        </p>
+          <div className="text-center">
+            <Link href="/auth/register" className="text-sm text-gray-400 hover:text-white">
+              Do not have an account? Sign Up
+            </Link>
+          </div>
+        </form>
       </div>
     </div>
   )

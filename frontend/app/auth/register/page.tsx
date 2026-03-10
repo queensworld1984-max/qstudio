@@ -2,136 +2,146 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
-import { authAPI } from '@/lib/api'
+import { Film, Loader2, AlertCircle } from 'lucide-react'
 
 export default function RegisterPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [fullName, setFullName] = useState('')
-  const [error, setError] = useState('')
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    full_name: ''
+  })
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true)
     setError('')
 
-    if (password !== confirmPassword) {
+    if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
+      setLoading(false)
       return
     }
-
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters')
-      return
-    }
-
-    setLoading(true)
 
     try {
-      console.log('Attempting registration with:', { email, fullName })
-      await authAPI.register({
-        email,
-        password,
-        full_name: fullName || undefined,
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.full_name
+        })
       })
-      console.log('Registration successful')
 
-      // Redirect to login
-      router.push('/auth/login?registered=true')
-    } catch (err: any) {
-      console.error('Registration error:', err)
-      console.error('Error response:', err.response?.data)
-      setError(err.response?.data?.detail || err.message || 'Registration failed. Please try again.')
+      const data = await res.json()
+
+      if (res.ok) {
+        setSuccess(true)
+        // Auto login after registration
+        const loginForm = new URLSearchParams()
+        loginForm.append('username', formData.email)
+        loginForm.append('password', formData.password)
+        
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: loginForm
+        })
+        
+        if (loginRes.ok) {
+          const loginData = await loginRes.json()
+          localStorage.setItem('access_token', loginData.access_token)
+          window.location.href = '/dashboard'
+        } else {
+          window.location.href = '/auth/login'
+        }
+      } else {
+        setError(data.detail || 'Registration failed')
+      }
+    } catch (err) {
+      setError('Cannot connect to server')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 py-12 px-4">
+      <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Q Studio</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Create your account
-          </p>
+          <div className="mx-auto h-12 w-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
+            <Film className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="mt-6 text-3xl font-extrabold text-white">Q Studio</h2>
+          <p className="mt-2 text-sm text-gray-400">Create your account</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
+            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
               {error}
             </div>
           )}
 
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-              Full Name (Optional)
-            </label>
-            <input
-              id="fullName"
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-              placeholder="John Doe"
-            />
-          </div>
+          {success && (
+            <div className="bg-green-500/10 border border-green-500/50 text-green-400 px-4 py-3 rounded-lg">
+              Account created! Redirecting...
+            </div>
+          )}
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-              Confirm Password
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-              placeholder="••••••••"
-            />
+          <div className="space-y-4">
+            <div>
+              <input
+                type="text"
+                value={formData.full_name}
+                onChange={(e) => setFormData({...formData, full_name: e.target.value})}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded-md focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                placeholder="Full Name (Optional)"
+              />
+            </div>
+            <div>
+              <input
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded-md focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                placeholder="Email address"
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                required
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded-md focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                placeholder="Password"
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                required
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-700 bg-gray-800 text-white placeholder-gray-400 rounded-md focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                placeholder="Confirm Password"
+              />
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -139,14 +149,13 @@ export default function RegisterPage() {
               'Create Account'
             )}
           </button>
-        </form>
 
-        <p className="text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link href="/auth/login" className="font-medium text-primary hover:text-primary/80">
-            Sign In
-          </Link>
-        </p>
+          <div className="text-center">
+            <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white">
+              Already have an account? Sign In
+            </Link>
+          </div>
+        </form>
       </div>
     </div>
   )
