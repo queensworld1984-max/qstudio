@@ -25,16 +25,29 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.text()
   const path = request.nextUrl.pathname
   const authHeader = request.headers.get('authorization')
-  
+  const contentType = request.headers.get('Content-Type') || ''
+
+  // Handle multipart/form-data (file uploads) differently
+  const isMultipart = contentType.includes('multipart/form-data')
+
+  let fetchHeaders: Record<string, string> = {}
+  if (authHeader) fetchHeaders['Authorization'] = authHeader
+  let body: BodyInit
+
+  if (isMultipart) {
+    // Forward the raw body with its boundary intact
+    body = await request.arrayBuffer()
+    fetchHeaders['Content-Type'] = contentType
+  } else {
+    body = await request.text()
+    fetchHeaders['Content-Type'] = 'application/json'
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': request.headers.get('Content-Type') || 'application/json',
-      ...(authHeader ? { Authorization: authHeader } : {}),
-    },
+    headers: fetchHeaders,
     body,
   })
 

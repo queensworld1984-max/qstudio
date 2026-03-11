@@ -3,7 +3,7 @@ AI Generation Routes for Q Studio.
 Provides endpoints for script, image, video, voice, face generation,
 and video editor composition/export.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
@@ -386,6 +386,44 @@ async def ai_render_scene(
     except Exception as e:
         logger.error(f"AI render pipeline failed: {e}")
         raise HTTPException(status_code=500, detail=f"AI render failed: {str(e)}")
+
+
+# ─── File Upload ─────────────────────────────────────────────────────────────
+
+@router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Upload an image or media file. Returns a URL to access the uploaded file."""
+    allowed_types = {
+        "image/jpeg", "image/png", "image/webp", "image/gif",
+        "video/mp4", "video/webm", "audio/mpeg", "audio/wav",
+    }
+    content_type = file.content_type or ""
+    if content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type '{content_type}' not allowed. Supported: {', '.join(sorted(allowed_types))}",
+        )
+
+    # Limit file size to 20 MB
+    max_size = 20 * 1024 * 1024
+    contents = await file.read()
+    if len(contents) > max_size:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 20 MB.")
+
+    ext = os.path.splitext(file.filename or "upload")[1] or ".jpg"
+    unique_name = f"upload_{uuid_mod.uuid4().hex[:12]}{ext}"
+    os.makedirs(EXPORT_DIR, exist_ok=True)
+    dest_path = os.path.join(EXPORT_DIR, unique_name)
+
+    with open(dest_path, "wb") as f:
+        f.write(contents)
+
+    # Build public URL — use request host or fallback
+    file_url = f"/exports/{unique_name}"
+    return {"url": file_url, "filename": unique_name, "size": len(contents)}
 
 
 # ─── Video Editor Export/Composition ─────────────────────────────────────────

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Sparkles, FileText, Image, Video, Mic, UserCircle, Wand2, Loader2, Copy, Download, Play, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Sparkles, FileText, Image, Video, Mic, UserCircle, Wand2, Loader2, Copy, Download, Play, AlertCircle, Upload } from 'lucide-react'
 
 interface AIStatus {
   openai_configured: boolean
@@ -34,6 +34,8 @@ export default function AIStudioPage() {
   const [faceStyle, setFaceStyle] = useState('photorealistic')
   const [imageRefFaceUrl, setImageRefFaceUrl] = useState('')
   const [useRefFace, setUseRefFace] = useState(false)
+  const [uploadingFace, setUploadingFace] = useState(false)
+  const faceFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchAIStatus()
@@ -44,6 +46,40 @@ export default function AIStudioPage() {
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    }
+  }
+
+  const getAuthToken = () => localStorage.getItem('access_token') || ''
+
+  const handleFaceFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFace(true)
+    setError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const token = getAuthToken()
+      const res = await fetch('/api/ai/upload', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Upload failed' }))
+        throw new Error(err.detail || `Upload error ${res.status}`)
+      }
+      const data = await res.json()
+      // Build full URL from relative path
+      const origin = window.location.origin
+      const fullUrl = data.url.startsWith('http') ? data.url : `${origin}${data.url}`
+      setImageRefFaceUrl(fullUrl)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Upload failed'
+      setError(msg)
+    } finally {
+      setUploadingFace(false)
+      if (faceFileInputRef.current) faceFileInputRef.current.value = ''
     }
   }
 
@@ -241,14 +277,67 @@ export default function AIStudioPage() {
                 </label>
                 <p className="text-xs text-purple-600 mt-1 ml-6">Preserve the exact facial identity from a reference photo across all generated scenes</p>
                 {useRefFace && (
-                  <div className="mt-3 ml-6">
+                  <div className="mt-3 ml-6 space-y-3">
+                    {/* Upload from device */}
+                    <div>
+                      <input
+                        ref={faceFileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleFaceFileUpload}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => faceFileInputRef.current?.click()}
+                        disabled={uploadingFace}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                      >
+                        {uploadingFace ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
+                        ) : (
+                          <><Upload className="h-4 w-4" /> Upload face image from device</>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Or paste URL */}
+                    <div className="flex items-center gap-2 text-xs text-purple-400">
+                      <div className="flex-1 border-t border-purple-200" />
+                      <span>or paste a URL</span>
+                      <div className="flex-1 border-t border-purple-200" />
+                    </div>
                     <input
                       value={imageRefFaceUrl}
                       onChange={e => setImageRefFaceUrl(e.target.value)}
                       placeholder="https://... URL of the face reference image"
                       className="w-full border border-purple-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
-                    <p className="text-xs text-purple-500 mt-1">The generated image will use FLUX for the scene + AI face swap to preserve this face ($0.012/image)</p>
+
+                    {/* Preview uploaded face */}
+                    {imageRefFaceUrl && (
+                      <div className="flex items-center gap-3 p-2 bg-purple-100 rounded-lg">
+                        <img
+                          src={imageRefFaceUrl}
+                          alt="Reference face"
+                          className="w-12 h-12 rounded-full object-cover border-2 border-purple-400"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-purple-800 truncate">Reference face loaded</p>
+                          <p className="text-xs text-purple-500 truncate">{imageRefFaceUrl}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setImageRefFaceUrl('')}
+                          className="text-purple-400 hover:text-purple-700 text-xs"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-purple-500">The generated image will use FLUX for the scene + AI face swap to preserve this face ($0.012/image)</p>
                   </div>
                 )}
               </div>
@@ -357,13 +446,88 @@ export default function AIStudioPage() {
           {activeTab === 'face' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reference Face Image URL</label>
-                <input
-                  value={faceImageUrl}
-                  onChange={e => setFaceImageUrl(e.target.value)}
-                  placeholder="https://... URL of the face reference image"
-                  className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reference Face Image</label>
+                <div className="space-y-2">
+                  <input
+                    ref={faceFileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      setUploadingFace(true)
+                      setError('')
+                      try {
+                        const formData = new FormData()
+                        formData.append('file', file)
+                        const token = getAuthToken()
+                        const res = await fetch('/api/ai/upload', {
+                          method: 'POST',
+                          headers: token ? { Authorization: `Bearer ${token}` } : {},
+                          body: formData,
+                        })
+                        if (!res.ok) {
+                          const err = await res.json().catch(() => ({ detail: 'Upload failed' }))
+                          throw new Error(err.detail || `Upload error ${res.status}`)
+                        }
+                        const data = await res.json()
+                        const origin = window.location.origin
+                        const fullUrl = data.url.startsWith('http') ? data.url : `${origin}${data.url}`
+                        setFaceImageUrl(fullUrl)
+                      } catch (err: unknown) {
+                        const msg = err instanceof Error ? err.message : 'Upload failed'
+                        setError(msg)
+                      } finally {
+                        setUploadingFace(false)
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => faceFileInputRef.current?.click()}
+                    disabled={uploadingFace}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {uploadingFace ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
+                    ) : (
+                      <><Upload className="h-4 w-4" /> Upload face image from device</>
+                    )}
+                  </button>
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <div className="flex-1 border-t border-gray-200" />
+                    <span>or paste a URL</span>
+                    <div className="flex-1 border-t border-gray-200" />
+                  </div>
+                  <input
+                    value={faceImageUrl}
+                    onChange={e => setFaceImageUrl(e.target.value)}
+                    placeholder="https://... URL of the face reference image"
+                    className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  {faceImageUrl && (
+                    <div className="flex items-center gap-3 p-2 bg-indigo-50 rounded-lg">
+                      <img
+                        src={faceImageUrl}
+                        alt="Reference face"
+                        className="w-12 h-12 rounded-full object-cover border-2 border-indigo-400"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-indigo-800 truncate">Reference face loaded</p>
+                        <p className="text-xs text-indigo-500 truncate">{faceImageUrl}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFaceImageUrl('')}
+                        className="text-indigo-400 hover:text-indigo-700 text-xs"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Portrait Description</label>
