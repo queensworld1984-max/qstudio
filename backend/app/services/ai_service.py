@@ -1,21 +1,21 @@
 """
 AI Service Layer for Q Studio.
-Integrates OpenAI (scripts, storyboards) and Replicate (video, face, voice).
+Integrates OpenAI (scripts, storyboards) and fal.ai (video, face, voice, FLUX images).
 """
 import os
 import json
 import logging
 import httpx
-import time
+import asyncio
 from typing import Optional, Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-REPLICATE_API_TOKEN = os.environ.get("REPLICATE_API_TOKEN", "")
+FAL_KEY = os.environ.get("FAL_KEY", "")
 
 OPENAI_BASE_URL = "https://api.openai.com/v1"
-REPLICATE_BASE_URL = "https://api.replicate.com/v1"
+FAL_QUEUE_URL = "https://queue.fal.run"
 
 
 # ============ OPENAI SERVICES ============
@@ -165,65 +165,70 @@ Return JSON with:
             return {"visual_prompt": content}
 
 
-# ============ REPLICATE SERVICES ============
+# ============ FAL.AI SERVICES ============
 
-async def _run_replicate_model(
-    model_version: str,
-    input_data: Dict[str, Any],
-    poll_interval: float = 2.0,
+async def _fal_submit_and_poll(
+    endpoint: str,
+    payload: Dict[str, Any],
     max_wait: float = 300.0,
+    poll_interval: float = 5.0,
 ) -> Dict[str, Any]:
-    """Run a Replicate model and wait for the result."""
-    if not REPLICATE_API_TOKEN:
-        raise ValueError("REPLICATE_API_TOKEN not configured")
+    """Submit a job to fal.ai queue and poll until complete."""
+    if not FAL_KEY:
+        raise ValueError("FAL_KEY not configured")
 
     headers = {
-        "Authorization": f"Bearer {REPLICATE_API_TOKEN}",
+        "Authorization": f"Key {FAL_KEY}",
         "Content-Type": "application/json",
-        "Prefer": "wait",
     }
 
-    async with httpx.AsyncClient(timeout=max_wait + 30) as client:
-        # Create prediction
+    async with httpx.AsyncClient(timeout=max_wait + 30, follow_redirects=True) as client:
+        # Submit to queue
         response = await client.post(
-            f"{REPLICATE_BASE_URL}/predictions",
+            f"{FAL_QUEUE_URL}/{endpoint}",
             headers=headers,
-            json={
-                "version": model_version,
-                "input": input_data,
-            },
+            json=payload,
         )
-        response.raise_for_status()
-        prediction = response.json()
 
-        # If the "Prefer: wait" header worked, result may already be done
-        if prediction.get("status") in ("succeeded", "failed", "canceled"):
-            return prediction
+        if response.status_code not in (200, 201):
+            raise RuntimeError(f"fal.ai submission failed: {response.status_code} - {response.text[:300]}")
 
-        # Otherwise poll for completion
-        prediction_id = prediction["id"]
+        data = response.json()
+        request_id = data.get("request_id")
+        response_url = data.get("response_url")
+        status_url = data.get("status_url")
+
+        if not request_id:
+            # Synchronous response
+            return data
+
+        # Poll for completion
         elapsed = 0.0
         while elapsed < max_wait:
-            await _async_sleep(poll_interval)
+            await asyncio.sleep(poll_interval)
             elapsed += poll_interval
 
-            poll_response = await client.get(
-                f"{REPLICATE_BASE_URL}/predictions/{prediction_id}",
-                headers={"Authorization": f"Bearer {REPLICATE_API_TOKEN}"},
-            )
-            poll_response.raise_for_status()
-            prediction = poll_response.json()
+            try:
+                status_resp = await client.get(status_url, headers=headers)
+                status_data = status_resp.json()
+                status = status_data.get("status", "")
 
-            if prediction["status"] in ("succeeded", "failed", "canceled"):
-                return prediction
+                if status == "COMPLETED":
+                    result_resp = await client.get(response_url, headers=headers)
+                    if result_resp.status_code == 200:
+                        return result_resp.json()
+                    else:
+                        raise RuntimeError(f"Failed to fetch fal.ai result: {result_resp.status_code}")
+                elif status == "FAILED":
+                    error = status_data.get("error", "Unknown error")
+                    raise RuntimeError(f"fal.ai job failed: {error}")
+                # IN_QUEUE or IN_PROGRESS - keep polling
+            except httpx.HTTPError as e:
+                logger.warning(f"fal.ai poll error: {e}")
+                await asyncio.sleep(poll_interval)
+                elapsed += poll_interval
 
-        raise TimeoutError(f"Replicate prediction {prediction_id} timed out after {max_wait}s")
-
-
-async def _async_sleep(seconds: float):
-    """Async sleep helper."""
-    import asyncio
-    await asyncio.sleep(seconds)
+        raise TimeoutError(f"fal.ai job timed out after {max_wait}s")
 
 
 async def generate_image_flux(
@@ -231,62 +236,38 @@ async def generate_image_flux(
     aspect_ratio: str = "16:9",
     model: str = "schnell",
 ) -> Dict[str, Any]:
-    """Generate an image using FLUX on Replicate."""
-    model_versions = {
-        "schnell": "black-forest-labs/flux-schnell",
-        "dev": "black-forest-labs/flux-dev",
-        "pro": "black-forest-labs/flux-1.1-pro",
+    """Generate an image using FLUX on fal.ai."""
+    size_map = {
+        "16:9": "landscape_16_9",
+        "9:16": "portrait_16_9",
+        "1:1": "square",
+        "4:3": "landscape_4_3",
+        "3:4": "portrait_4_3",
     }
 
-    model_id = model_versions.get(model, model_versions["schnell"])
-
-    headers = {
-        "Authorization": f"Bearer {REPLICATE_API_TOKEN}",
-        "Content-Type": "application/json",
-        "Prefer": "wait",
+    model_endpoints = {
+        "schnell": "fal-ai/flux/schnell",
+        "dev": "fal-ai/flux/dev",
+        "pro": "fal-ai/flux-pro/v1.1",
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            f"{REPLICATE_BASE_URL}/models/{model_id}/predictions",
-            headers=headers,
-            json={
-                "input": {
-                    "prompt": prompt,
-                    "aspect_ratio": aspect_ratio,
-                    "output_format": "png",
-                },
-            },
-        )
-        response.raise_for_status()
-        prediction = response.json()
+    endpoint = model_endpoints.get(model, model_endpoints["schnell"])
+    image_size = size_map.get(aspect_ratio, "landscape_16_9")
 
-        # Poll if not done
-        if prediction.get("status") not in ("succeeded", "failed", "canceled"):
-            prediction_id = prediction["id"]
-            for _ in range(150):
-                await _async_sleep(2.0)
-                poll = await client.get(
-                    f"{REPLICATE_BASE_URL}/predictions/{prediction_id}",
-                    headers={"Authorization": f"Bearer {REPLICATE_API_TOKEN}"},
-                )
-                poll.raise_for_status()
-                prediction = poll.json()
-                if prediction["status"] in ("succeeded", "failed", "canceled"):
-                    break
+    result = await _fal_submit_and_poll(endpoint, {
+        "prompt": prompt,
+        "image_size": image_size,
+        "num_images": 1,
+        "enable_safety_checker": False,
+    })
 
-        if prediction["status"] == "succeeded":
-            output = prediction.get("output")
-            if isinstance(output, list):
-                image_url = output[0]
-            elif isinstance(output, str):
-                image_url = output
-            else:
-                image_url = str(output)
-            return {"image_url": image_url, "prediction_id": prediction["id"]}
-        else:
-            error = prediction.get("error", "Unknown error")
-            raise RuntimeError(f"FLUX generation failed: {error}")
+    if result and "images" in result:
+        images = result["images"]
+        if images and len(images) > 0:
+            image_url = images[0].get("url", "")
+            return {"image_url": image_url, "prediction_id": ""}
+
+    raise RuntimeError("FLUX generation returned no images")
 
 
 async def generate_video(
@@ -295,87 +276,43 @@ async def generate_video(
     duration: int = 5,
     resolution: str = "480p",
 ) -> Dict[str, Any]:
-    """Generate a video from an image using Wan 2.1 on Replicate."""
-    model_map = {
-        "480p": "wavespeedai/wan-2.1-i2v-480p",
-        "720p": "wavespeedai/wan-2.1-i2v-720p",
-    }
-
-    model_id = model_map.get(resolution, model_map["480p"])
-
-    input_data = {
-        "image": image_url,
+    """Generate a video from an image using Wan 2.1 on fal.ai."""
+    result = await _fal_submit_and_poll("fal-ai/wan-i2v", {
+        "image_url": image_url,
         "prompt": prompt or "cinematic motion, smooth camera movement, high quality",
-        "max_frames": min(duration * 24, 81),
-    }
+        "num_frames": min(duration * 16, 81),
+        "resolution": resolution,
+        "enable_safety_checker": False,
+    }, max_wait=600.0)
 
-    headers = {
-        "Authorization": f"Bearer {REPLICATE_API_TOKEN}",
-        "Content-Type": "application/json",
-        "Prefer": "wait",
-    }
+    if result and "video" in result:
+        video = result["video"]
+        url = video.get("url", "") if isinstance(video, dict) else str(video)
+        return {"video_url": url, "prediction_id": ""}
 
-    async with httpx.AsyncClient(timeout=600.0) as client:
-        response = await client.post(
-            f"{REPLICATE_BASE_URL}/models/{model_id}/predictions",
-            headers=headers,
-            json={"input": input_data},
-        )
-        response.raise_for_status()
-        prediction = response.json()
+    if result and "output" in result:
+        output = result["output"]
+        if isinstance(output, str):
+            return {"video_url": output, "prediction_id": ""}
 
-        # Poll if not done
-        if prediction.get("status") not in ("succeeded", "failed", "canceled"):
-            prediction_id = prediction["id"]
-            for _ in range(300):
-                await _async_sleep(2.0)
-                poll = await client.get(
-                    f"{REPLICATE_BASE_URL}/predictions/{prediction_id}",
-                    headers={"Authorization": f"Bearer {REPLICATE_API_TOKEN}"},
-                )
-                poll.raise_for_status()
-                prediction = poll.json()
-                if prediction["status"] in ("succeeded", "failed", "canceled"):
-                    break
-
-        if prediction["status"] == "succeeded":
-            output = prediction.get("output")
-            if isinstance(output, list):
-                video_url = output[0]
-            elif isinstance(output, str):
-                video_url = output
-            else:
-                video_url = str(output)
-            return {"video_url": video_url, "prediction_id": prediction["id"]}
-        else:
-            error = prediction.get("error", "Unknown error")
-            raise RuntimeError(f"Video generation failed: {error}")
+    raise RuntimeError("Video generation returned no output")
 
 
 async def generate_voice(
     text: str,
     speaker: str = "v2/en_speaker_6",
 ) -> Dict[str, Any]:
-    """Generate voice audio using Bark on Replicate."""
-    model_id = "suno-ai/bark"
-    model_version = "b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787"
+    """Generate voice audio using MiniMax TTS on fal.ai."""
+    result = await _fal_submit_and_poll("fal-ai/minimax-tts", {
+        "text": text,
+    }, max_wait=120.0)
 
-    input_data = {
-        "prompt": text,
-        "text_temp": 0.7,
-        "waveform_temp": 0.7,
-        "history_prompt": speaker,
-    }
+    if result and "audio" in result:
+        audio = result["audio"]
+        url = audio.get("url", "") if isinstance(audio, dict) else str(audio)
+        return {"audio_url": url, "prediction_id": ""}
 
-    prediction = await _run_replicate_model(model_version, input_data, max_wait=120.0)
-
-    if prediction["status"] == "succeeded":
-        output = prediction.get("output", {})
-        audio_url = output.get("audio_out", "") if isinstance(output, dict) else str(output)
-        return {"audio_url": audio_url, "prediction_id": prediction["id"]}
-    else:
-        error = prediction.get("error", "Unknown error")
-        raise RuntimeError(f"Voice generation failed: {error}")
+    raise RuntimeError("Voice generation returned no output")
 
 
 async def generate_face_portrait(
@@ -383,30 +320,18 @@ async def generate_face_portrait(
     prompt: str,
     style: str = "photorealistic",
 ) -> Dict[str, Any]:
-    """Generate a consistent face portrait using InstantID on Replicate."""
-    model_id = "zsxkib/instant-id"
-    model_version = "6af8583c541261472e92155d87bfb4dd19e96beb8d58c47128bef07e39db457e"
-
-    input_data = {
-        "image": face_image_url,
+    """Generate a consistent face portrait using IP-Adapter on fal.ai."""
+    result = await _fal_submit_and_poll("fal-ai/ip-adapter-face-id", {
+        "image_url": face_image_url,
         "prompt": f"{style} portrait, {prompt}, highly detailed, professional",
         "negative_prompt": "blurry, low quality, distorted, deformed",
-        "ip_adapter_scale": 0.8,
-        "controlnet_conditioning_scale": 0.8,
         "num_inference_steps": 30,
-    }
+    }, max_wait=120.0)
 
-    prediction = await _run_replicate_model(model_version, input_data, max_wait=120.0)
+    if result and "images" in result:
+        images = result["images"]
+        if images and len(images) > 0:
+            image_url = images[0].get("url", "")
+            return {"image_url": image_url, "prediction_id": ""}
 
-    if prediction["status"] == "succeeded":
-        output = prediction.get("output")
-        if isinstance(output, list):
-            image_url = output[0]
-        elif isinstance(output, str):
-            image_url = output
-        else:
-            image_url = str(output)
-        return {"image_url": image_url, "prediction_id": prediction["id"]}
-    else:
-        error = prediction.get("error", "Unknown error")
-        raise RuntimeError(f"Face portrait generation failed: {error}")
+    raise RuntimeError("Face portrait generation returned no output")

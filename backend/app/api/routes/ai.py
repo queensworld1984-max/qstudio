@@ -42,17 +42,17 @@ async def get_ai_status(
 ):
     """Check which AI providers are configured."""
     openai_ok = bool(os.environ.get("OPENAI_API_KEY", ""))
-    replicate_ok = bool(os.environ.get("REPLICATE_API_TOKEN", ""))
+    fal_ok = bool(os.environ.get("FAL_KEY", ""))
 
     providers = {}
     if openai_ok:
         providers["openai"] = ["script_generation", "dalle_images", "scene_descriptions"]
-    if replicate_ok:
-        providers["replicate"] = ["flux_images", "video_generation", "voice_synthesis", "face_portraits"]
+    if fal_ok:
+        providers["fal"] = ["flux_images", "video_generation", "voice_synthesis", "face_portraits"]
 
     return AIStatusResponse(
         openai_configured=openai_ok,
-        replicate_configured=replicate_ok,
+        replicate_configured=fal_ok,
         available_providers=providers,
     )
 
@@ -138,7 +138,7 @@ async def generate_video(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Generate a video from an image using Wan 2.1 on Replicate."""
+    """Generate a video from an image using Wan 2.1 on fal.ai."""
     if request.scene_id:
         scene = db.query(Scene).join(Project).filter(
             Scene.id == request.scene_id,
@@ -172,7 +172,7 @@ async def generate_voice(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Generate voice audio using Bark on Replicate."""
+    """Generate voice audio using fal.ai."""
     if request.character_id:
         character = db.query(Character).join(Project).filter(
             Character.id == request.character_id,
@@ -203,7 +203,7 @@ async def generate_face_portrait(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Generate a consistent face portrait using InstantID on Replicate."""
+    """Generate a consistent face portrait using fal.ai."""
     if request.character_id:
         character = db.query(Character).join(Project).filter(
             Character.id == request.character_id,
@@ -289,7 +289,7 @@ async def ai_render_scene(
         }
 
         openai_configured = bool(os.environ.get("OPENAI_API_KEY", ""))
-        replicate_configured = bool(os.environ.get("REPLICATE_API_TOKEN", ""))
+        fal_configured = bool(os.environ.get("FAL_KEY", ""))
 
         visual_prompt = scene.description or scene.name
 
@@ -302,7 +302,7 @@ async def ai_render_scene(
                 logger.warning(f"Scene description generation failed, using fallback: {e}")
 
         # Step 2: Generate image
-        if request.generate_image and replicate_configured:
+        if request.generate_image and fal_configured:
             try:
                 if request.image_provider == "dalle" and openai_configured:
                     img = await ai_service.generate_storyboard_image(
@@ -321,7 +321,7 @@ async def ai_render_scene(
                 result.error = f"Image generation failed: {str(e)}"
 
         # Step 3: Generate video from image
-        if request.generate_video and result.image_url and replicate_configured:
+        if request.generate_video and result.image_url and fal_configured:
             try:
                 vid = await ai_service.generate_video(
                     image_url=result.image_url,
@@ -344,7 +344,7 @@ async def ai_render_scene(
                     result.error = f"Video generation failed: {str(e)}"
 
         # Step 4: Generate voice
-        if request.generate_voice and replicate_configured:
+        if request.generate_voice and fal_configured:
             dialogue = ""
             sd = scene.scene_data or {}
             if isinstance(sd, dict):

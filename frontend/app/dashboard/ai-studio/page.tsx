@@ -140,7 +140,7 @@ export default function AIStudioPage() {
               OpenAI {aiStatus.openai_configured ? 'Connected' : 'Not configured'}
             </span>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${aiStatus.replicate_configured ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              Replicate {aiStatus.replicate_configured ? 'Connected' : 'Not configured'}
+              fal.ai {aiStatus.replicate_configured ? 'Connected' : 'Not configured'}
             </span>
           </div>
         )}
@@ -230,7 +230,7 @@ export default function AIStudioPage() {
                     onChange={e => setImageProvider(e.target.value)}
                     className="w-full border rounded-lg p-2.5"
                   >
-                    <option value="flux">FLUX (Replicate)</option>
+                    <option value="flux">FLUX (fal.ai)</option>
                     <option value="dalle">DALL-E 3 (OpenAI)</option>
                   </select>
                 </div>
