@@ -4,6 +4,8 @@ FastAPI application entry point for Q Studio.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -108,3 +110,8 @@ app.include_router(render.router, prefix="/api/render", tags=["Render Queue"])
 # Phase 1.2: AI Generation
 from app.api.routes import ai
 app.include_router(ai.router, prefix="/api/ai", tags=["AI Generation"])
+
+# Serve exported files (videos, images, etc.)
+exports_dir = "/app/exports"
+os.makedirs(exports_dir, exist_ok=True)
+app.mount("/exports", StaticFiles(directory=exports_dir), name="exports")
