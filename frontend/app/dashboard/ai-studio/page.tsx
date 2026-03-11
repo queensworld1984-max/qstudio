@@ -70,10 +70,8 @@ export default function AIStudioPage() {
         throw new Error(err.detail || `Upload error ${res.status}`)
       }
       const data = await res.json()
-      // Build full URL from relative path
-      const origin = window.location.origin
-      const fullUrl = data.url.startsWith('http') ? data.url : `${origin}${data.url}`
-      setImageRefFaceUrl(fullUrl)
+      // Use URL as-is from backend (backend returns absolute URL when PUBLIC_API_URL is set)
+      setImageRefFaceUrl(data.url)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Upload failed'
       setError(msg)
@@ -471,9 +469,7 @@ export default function AIStudioPage() {
                           throw new Error(err.detail || `Upload error ${res.status}`)
                         }
                         const data = await res.json()
-                        const origin = window.location.origin
-                        const fullUrl = data.url.startsWith('http') ? data.url : `${origin}${data.url}`
-                        setFaceImageUrl(fullUrl)
+                        setFaceImageUrl(data.url)
                       } catch (err: unknown) {
                         const msg = err instanceof Error ? err.message : 'Upload failed'
                         setError(msg)

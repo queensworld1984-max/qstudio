@@ -17,6 +17,7 @@ import uuid as uuid_mod
 import shutil
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.models.models import User, Project, Scene, Character
 from app.schemas.ai_schemas import (
     ScriptGenerateRequest, ScriptGenerateResponse,
@@ -421,8 +422,9 @@ async def upload_file(
     with open(dest_path, "wb") as f:
         f.write(contents)
 
-    # Build public URL — use request host or fallback
-    file_url = f"/exports/{unique_name}"
+    # Build public URL — use PUBLIC_API_URL if set, otherwise relative path
+    base = settings.PUBLIC_API_URL.rstrip("/") if settings.PUBLIC_API_URL else ""
+    file_url = f"{base}/exports/{unique_name}"
     return {"url": file_url, "filename": unique_name, "size": len(contents)}
 
 

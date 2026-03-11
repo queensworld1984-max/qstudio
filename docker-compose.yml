@@ -53,6 +53,7 @@ services:
       REFRESH_TOKEN_EXPIRE_DAYS: 7
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       FAL_KEY: ${FAL_KEY:-}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-}
     ports:
       - "8000:8000"
     depends_on:

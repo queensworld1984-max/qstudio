@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     FAL_KEY: str = os.getenv("FAL_KEY", "")
 
+    # Public URL for serving uploaded files (must be accessible from the internet)
+    PUBLIC_API_URL: str = os.getenv("PUBLIC_API_URL", "")
+
     # Rate limiting
     RATE_LIMIT_PER_MINUTE: int = 100
 
