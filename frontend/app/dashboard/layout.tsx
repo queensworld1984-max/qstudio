@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Film, Menu, X, LogOut, User, Folder, Users, Film as FilmIcon, Clapperboard, Monitor, Settings, Sparkles } from 'lucide-react'
+import { Film, Menu, X, LogOut, User, Folder, Users, Film as FilmIcon, Clapperboard, Monitor, Settings, Sparkles, Scissors } from 'lucide-react'
 
 const navItems = [
   { href: '/dashboard/projects', label: 'Projects', icon: Folder },
@@ -12,6 +12,7 @@ const navItems = [
   { href: '/dashboard/episodes', label: 'Episodes', icon: Clapperboard },
   { href: '/dashboard/render', label: 'Render', icon: Monitor },
   { href: '/dashboard/ai-studio', label: 'AI Studio', icon: Sparkles },
+  { href: '/dashboard/editor', label: 'Editor', icon: Scissors },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
