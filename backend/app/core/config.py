@@ -43,6 +43,10 @@ class Settings(BaseSettings):
         "https://72.62.165.54:8000",
     ]
 
+    # AI API Keys
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    REPLICATE_API_TOKEN: str = os.getenv("REPLICATE_API_TOKEN", "")
+
     # Rate limiting
     RATE_LIMIT_PER_MINUTE: int = 100
 

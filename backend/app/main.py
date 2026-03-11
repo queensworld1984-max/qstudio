@@ -104,3 +104,7 @@ app.include_router(episodes.router, prefix="/api/episodes", tags=["Episodes"])
 # Phase 1.1: Render Queue
 from app.api.routes import render
 app.include_router(render.router, prefix="/api/render", tags=["Render Queue"])
+
+# Phase 1.2: AI Generation
+from app.api.routes import ai
+app.include_router(ai.router, prefix="/api/ai", tags=["AI Generation"])
