@@ -601,7 +601,8 @@ async def export_composition(
             ]
             subprocess.run(fallback_cmd, capture_output=True, text=True, timeout=60)
 
-        output_url = f"/exports/editor_{job_id}.mp4"
+        base = settings.PUBLIC_API_URL.rstrip("/") if settings.PUBLIC_API_URL else ""
+        output_url = f"{base}/exports/editor_{job_id}.mp4"
 
         return CompositionResponse(
             status="completed",

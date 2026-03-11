@@ -948,12 +948,25 @@ export default function EditorPage() {
                 </div>
                 <p className="text-[10px] text-gray-500">{exportStatus}</p>
                 {exportProgress === 100 && (
-                  <button
-                    onClick={() => { setExportProgress(null); setExportStatus('') }}
-                    className="mt-2 w-full px-2 py-1 text-[10px] bg-gray-800 rounded hover:bg-gray-700"
-                  >
-                    Dismiss
-                  </button>
+                  <div className="mt-2 flex gap-2">
+                    {previewSrc && (
+                      <a
+                        href={previewSrc}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] bg-purple-600 text-white rounded hover:bg-purple-700"
+                      >
+                        <Download className="h-3 w-3" /> Download MP4
+                      </a>
+                    )}
+                    <button
+                      onClick={() => { setExportProgress(null); setExportStatus('') }}
+                      className="flex-1 px-2 py-1 text-[10px] bg-gray-800 rounded hover:bg-gray-700"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                 )}
               </div>
             )}
