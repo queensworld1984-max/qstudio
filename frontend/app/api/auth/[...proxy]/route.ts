@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://72.62.165.54:8000'
+const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://api:8000'
 
 export async function GET(request: NextRequest) {
   const path = request.nextUrl.pathname  // Keep full path like /api/auth/login
@@ -27,11 +27,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const body = await request.text()
   const path = request.nextUrl.pathname  // Keep full path
+  const authHeader = request.headers.get('authorization')
   
   const response = await fetch(`${API_URL}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': request.headers.get('Content-Type') || 'application/json',
+      ...(authHeader ? { Authorization: authHeader } : {}),
     },
     body,
   })
@@ -49,11 +51,13 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const body = await request.text()
   const path = request.nextUrl.pathname
+  const authHeader = request.headers.get('authorization')
   
   const response = await fetch(`${API_URL}${path}`, {
     method: 'PUT',
     headers: {
       'Content-Type': request.headers.get('Content-Type') || 'application/json',
+      ...(authHeader ? { Authorization: authHeader } : {}),
     },
     body,
   })

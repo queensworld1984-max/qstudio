@@ -53,10 +53,10 @@ async def create_render_job(
     
     job = RenderJob(
         scene_id=job_data.scene_id,
-        job_type=job_data.job_type,
+        provider=job_data.provider,
+        parameters=job_data.parameters or {},
         status="queued",
-        progress=0,
-        priority=job_data.priority
+        progress=0
     )
     db.add(job)
     db.commit()

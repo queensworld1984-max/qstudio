@@ -5,8 +5,9 @@ import Cookies from 'js-cookie'
 const API_URL = '' // Empty - use relative URLs to hit Next.js proxy
 
 // Create axios instance - use relative URL to hit Next.js API routes
+// All endpoint paths already include /api prefix, so baseURL is empty
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: '',
   headers: {
     'Content-Type': 'application/json',
   },

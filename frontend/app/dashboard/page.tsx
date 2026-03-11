@@ -37,9 +37,10 @@ export default function DashboardPage() {
 
   const fetchUser = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+      const token = localStorage.getItem('access_token')
+      const response = await fetch('/api/auth/me', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
       })
       if (response.ok) {
