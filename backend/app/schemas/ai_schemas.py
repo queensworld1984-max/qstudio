@@ -32,6 +32,7 @@ class ImageGenerateRequest(BaseModel):
     size: str = Field(default="1792x1024", description="Image size (for DALL-E)")
     quality: str = Field(default="standard", description="Quality: standard, hd (for DALL-E)")
     model: str = Field(default="schnell", description="FLUX model: schnell, dev, pro")
+    face_image_url: Optional[str] = Field(default=None, description="Reference face image URL for face-preserving generation")
     scene_id: Optional[UUID] = None
 
 
@@ -111,6 +112,7 @@ class AIRenderRequest(BaseModel):
     image_provider: str = Field(default="flux", description="Image provider: dalle, flux")
     video_resolution: str = Field(default="480p", description="Video resolution: 480p, 720p")
     voice_speaker: str = Field(default="v2/en_speaker_6", description="Voice preset")
+    face_image_url: Optional[str] = Field(default=None, description="Reference face image URL for face-preserving generation")
 
 
 class AIRenderResponse(BaseModel):

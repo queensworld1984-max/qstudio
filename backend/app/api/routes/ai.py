@@ -114,6 +114,19 @@ async def generate_image(
                 revised_prompt=result.get("revised_prompt", ""),
                 provider="dalle",
             )
+        elif request.face_image_url:
+            # Use FLUX + face swap pipeline to preserve reference face
+            result = await ai_service.generate_image_with_face(
+                prompt=request.prompt,
+                face_image_url=request.face_image_url,
+                aspect_ratio=request.aspect_ratio,
+                model=request.model,
+            )
+            return ImageGenerateResponse(
+                image_url=result["image_url"],
+                prediction_id=result.get("prediction_id", ""),
+                provider="flux+faceswap",
+            )
         else:
             result = await ai_service.generate_image_flux(
                 prompt=request.prompt,
@@ -301,13 +314,21 @@ async def ai_render_scene(
             except Exception as e:
                 logger.warning(f"Scene description generation failed, using fallback: {e}")
 
-        # Step 2: Generate image
+        # Step 2: Generate image (with optional face preservation)
         if request.generate_image and fal_configured:
             try:
                 if request.image_provider == "dalle" and openai_configured:
                     img = await ai_service.generate_storyboard_image(
                         prompt=visual_prompt,
                         style="cinematic film still",
+                    )
+                    result.image_url = img["image_url"]
+                elif request.face_image_url:
+                    # Use FLUX + face swap to preserve reference face
+                    img = await ai_service.generate_image_with_face(
+                        prompt=visual_prompt,
+                        face_image_url=request.face_image_url,
+                        aspect_ratio="16:9",
                     )
                     result.image_url = img["image_url"]
                 else:

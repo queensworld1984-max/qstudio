@@ -315,6 +315,65 @@ async def generate_voice(
     raise RuntimeError("Voice generation returned no output")
 
 
+async def face_swap(
+    source_face_url: str,
+    target_image_url: str,
+) -> Dict[str, Any]:
+    """Swap a face from a source image onto a target image using fal.ai.
+    
+    Uses fal-ai/face-swap which takes a reference face (swap_image_url)
+    and blends it onto the target scene (base_image_url).
+    """
+    result = await _fal_submit_and_poll("fal-ai/face-swap", {
+        "base_image_url": target_image_url,
+        "swap_image_url": source_face_url,
+    }, max_wait=120.0)
+
+    if result and "image" in result:
+        image = result["image"]
+        url = image.get("url", "") if isinstance(image, dict) else str(image)
+        return {"image_url": url, "prediction_id": ""}
+
+    raise RuntimeError("Face swap returned no output")
+
+
+async def generate_image_with_face(
+    prompt: str,
+    face_image_url: str,
+    aspect_ratio: str = "16:9",
+    model: str = "schnell",
+) -> Dict[str, Any]:
+    """Generate a scene image with FLUX, then swap in the reference face.
+    
+    Two-step pipeline:
+    1. FLUX generates the scene (text-to-image)
+    2. Face swap replaces the character's face with the reference face
+    """
+    # Step 1: Generate scene image with FLUX
+    logger.info(f"Step 1: Generating scene image with FLUX ({model})...")
+    flux_result = await generate_image_flux(
+        prompt=prompt,
+        aspect_ratio=aspect_ratio,
+        model=model,
+    )
+    scene_image_url = flux_result["image_url"]
+    logger.info(f"Scene image generated: {scene_image_url[:80]}...")
+
+    # Step 2: Swap the reference face onto the scene character
+    logger.info("Step 2: Swapping reference face onto scene character...")
+    swap_result = await face_swap(
+        source_face_url=face_image_url,
+        target_image_url=scene_image_url,
+    )
+    logger.info(f"Face swap complete: {swap_result['image_url'][:80]}...")
+
+    return {
+        "image_url": swap_result["image_url"],
+        "original_scene_url": scene_image_url,
+        "prediction_id": "",
+    }
+
+
 async def generate_face_portrait(
     face_image_url: str,
     prompt: str,

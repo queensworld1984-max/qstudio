@@ -32,6 +32,8 @@ export default function AIStudioPage() {
   const [faceImageUrl, setFaceImageUrl] = useState('')
   const [facePrompt, setFacePrompt] = useState('professional headshot')
   const [faceStyle, setFaceStyle] = useState('photorealistic')
+  const [imageRefFaceUrl, setImageRefFaceUrl] = useState('')
+  const [useRefFace, setUseRefFace] = useState(false)
 
   useEffect(() => {
     fetchAIStatus()
@@ -74,6 +76,9 @@ export default function AIStudioPage() {
         case 'image':
           endpoint = '/api/ai/generate/image'
           body = { prompt: imagePrompt, provider: imageProvider, model: imageModel }
+          if (useRefFace && imageRefFaceUrl) {
+            body.face_image_url = imageRefFaceUrl
+          }
           break
         case 'video':
           endpoint = '/api/ai/generate/video'
@@ -222,6 +227,32 @@ export default function AIStudioPage() {
                   className="w-full border rounded-lg p-3 h-24 resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
+
+              {/* Reference Face Toggle */}
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useRefFace}
+                    onChange={e => setUseRefFace(e.target.checked)}
+                    className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-sm font-medium text-purple-800">Use reference face image</span>
+                </label>
+                <p className="text-xs text-purple-600 mt-1 ml-6">Preserve the exact facial identity from a reference photo across all generated scenes</p>
+                {useRefFace && (
+                  <div className="mt-3 ml-6">
+                    <input
+                      value={imageRefFaceUrl}
+                      onChange={e => setImageRefFaceUrl(e.target.value)}
+                      placeholder="https://... URL of the face reference image"
+                      className="w-full border border-purple-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-purple-500 mt-1">The generated image will use FLUX for the scene + AI face swap to preserve this face ($0.012/image)</p>
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
