@@ -94,8 +94,11 @@ async def get_current_user(
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user."""
+    # Normalize email to lowercase
+    normalized_email = user_data.email.strip().lower()
+    
     # Check if email already exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    existing_user = db.query(User).filter(User.email == normalized_email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -105,7 +108,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     # Create new user
     hashed_password = hash_password(user_data.password)
     new_user = User(
-        email=user_data.email,
+        email=normalized_email,
         password_hash=hashed_password,
         full_name=user_data.full_name,
         role="user"
@@ -125,7 +128,8 @@ async def login(
 ):
     """Login and get access/refresh tokens."""
     # Find user by email (OAuth2PasswordRequestForm uses username field for email)
-    user = db.query(User).filter(User.email == form_data.username).first()
+    normalized_email = form_data.username.strip().lower()
+    user = db.query(User).filter(User.email == normalized_email).first()
     
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
