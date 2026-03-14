@@ -316,7 +316,7 @@ async def ai_render_scene(
                 logger.warning(f"Scene description generation failed, using fallback: {e}")
 
         # Step 2: Generate image (with optional face preservation)
-        if request.generate_image and fal_configured:
+        if request.generate_image and (fal_configured or openai_configured):
             try:
                 if request.image_provider == "dalle" and openai_configured:
                     img = await ai_service.generate_storyboard_image(
